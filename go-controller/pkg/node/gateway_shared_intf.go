@@ -70,14 +70,13 @@ func newNodePortWatcherIptables() *nodePortWatcherIptables {
 // nodePortWatcher manages OpenFlow and iptables rules
 // to ensure that services using NodePorts are accessible
 type nodePortWatcher struct {
-	dpuMode       bool
-	gatewayIPv4   string
-	gatewayIPv6   string
-	gatewayIPLock sync.Mutex
-	ofportPhys    string
-	ofportPatch   string
-	gwBridge      string
-	nodeName      string
+	dpuMode     bool
+	gatewayIPv4 string
+	gatewayIPv6 string
+	ofportPhys  string
+	ofportPatch string
+	gwBridge    string
+	nodeName    string
 	// Map of service name to programmed iptables/OF rules
 	serviceInfo           map[ktypes.NamespacedName]*serviceConfig
 	serviceInfoLock       sync.Mutex
@@ -107,18 +106,6 @@ type cidrAndFlags struct {
 	flags int
 }
 
-func (npw *nodePortWatcher) updateGatewayIPs(addressManager *addressManager) {
-	// Get Physical IPs of Node, Can be IPV4 IPV6 or both
-	addressManager.gatewayBridge.Lock()
-	gatewayIPv4, gatewayIPv6 := getGatewayFamilyAddrs(addressManager.gatewayBridge.ips)
-	addressManager.gatewayBridge.Unlock()
-
-	npw.gatewayIPLock.Lock()
-	defer npw.gatewayIPLock.Unlock()
-	npw.gatewayIPv4 = gatewayIPv4
-	npw.gatewayIPv6 = gatewayIPv6
-}
-
 // updateServiceFlowCache handles managing breth0 gateway flows for ingress traffic towards kubernetes services
 // (nodeport, external, ingress). By default incoming traffic into the node is steered directly into OVN (case3 below).
 //
@@ -135,8 +122,6 @@ func (npw *nodePortWatcher) updateGatewayIPs(addressManager *addressManager) {
 // `add` parameter indicates if the flows should exist or be removed from the cache
 // `hasLocalHostNetworkEp` indicates if at least one host networked endpoint exists for this service which is local to this node.
 func (npw *nodePortWatcher) updateServiceFlowCache(service *kapi.Service, add, hasLocalHostNetworkEp bool) error {
-	npw.gatewayIPLock.Lock()
-	defer npw.gatewayIPLock.Unlock()
 	var cookie, key string
 	var err error
 	var errors []error
@@ -1102,10 +1087,6 @@ func newGatewayOpenFlowManager(gwBridge, exGWBridge *bridgeConfiguration, subnet
 // updateBridgeFlowCache generates the "static" per-bridge flows
 // note: this is shared between shared and local gateway modes
 func (ofm *openflowManager) updateBridgeFlowCache(subnets []*net.IPNet, extraIPs []net.IP) error {
-	// protect defaultBridge config from being updated by gw.nodeIPManager
-	ofm.defaultBridge.Lock()
-	defer ofm.defaultBridge.Unlock()
-
 	dftFlows, err := flowsForDefaultBridge(ofm.defaultBridge, extraIPs)
 	if err != nil {
 		return err
@@ -1739,7 +1720,7 @@ func newSharedGateway(nodeName string, subnets []*net.IPNet, gwNextHops []net.IP
 				}
 			}
 		}
-		gw.nodeIPManager = newAddressManager(nodeName, kube, cfg, watchFactory, gwBridge)
+		gw.nodeIPManager = newAddressManager(nodeName, kube, cfg, watchFactory)
 		nodeIPs := gw.nodeIPManager.ListAddresses()
 
 		if config.OvnKubeNode.Mode == types.NodeModeFull {
@@ -1764,8 +1745,6 @@ func newSharedGateway(nodeName string, subnets []*net.IPNet, gwNextHops []net.IP
 				// very unlikely - somehow node has lost its IP address
 				klog.Errorf("Failed to re-generate gateway flows after address change: %v", err)
 			}
-			npw, _ := gw.nodePortWatcher.(*nodePortWatcher)
-			npw.updateGatewayIPs(gw.nodeIPManager)
 			gw.openflowManager.requestFlowSync()
 		}
 
@@ -1777,7 +1756,7 @@ func newSharedGateway(nodeName string, subnets []*net.IPNet, gwNextHops []net.IP
 				}
 			}
 			klog.Info("Creating Shared Gateway Node Port Watcher")
-			gw.nodePortWatcher, err = newNodePortWatcher(gwBridge, nodeName, gw.openflowManager, gw.nodeIPManager, watchFactory)
+			gw.nodePortWatcher, err = newNodePortWatcher(gwBridge.patchPort, gwBridge.bridgeName, gwBridge.uplinkName, nodeName, gwBridge.ips, gw.openflowManager, gw.nodeIPManager, watchFactory)
 			if err != nil {
 				return err
 			}
@@ -1797,22 +1776,22 @@ func newSharedGateway(nodeName string, subnets []*net.IPNet, gwNextHops []net.IP
 	return gw, nil
 }
 
-func newNodePortWatcher(gwBridge *bridgeConfiguration, nodeName string, ofm *openflowManager,
+func newNodePortWatcher(patchPort, gwBridge, gwIntf, nodeName string, ips []*net.IPNet, ofm *openflowManager,
 	nodeIPManager *addressManager, watchFactory factory.NodeWatchFactory) (*nodePortWatcher, error) {
 	// Get ofport of patchPort
 	ofportPatch, stderr, err := util.GetOVSOfPort("--if-exists", "get",
-		"interface", gwBridge.patchPort, "ofport")
+		"interface", patchPort, "ofport")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ofport of %s, stderr: %q, error: %v",
-			gwBridge.patchPort, stderr, err)
+			patchPort, stderr, err)
 	}
 
 	// Get ofport of physical interface
 	ofportPhys, stderr, err := util.GetOVSOfPort("--if-exists", "get",
-		"interface", gwBridge.uplinkName, "ofport")
+		"interface", gwIntf, "ofport")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ofport of %s, stderr: %q, error: %v",
-			gwBridge.uplinkName, stderr, err)
+			gwIntf, stderr, err)
 	}
 
 	// In the shared gateway mode, the NodePort service is handled by the OpenFlow flows configured
@@ -1851,7 +1830,7 @@ func newNodePortWatcher(gwBridge *bridgeConfiguration, nodeName string, ofm *ope
 	}
 
 	// Get Physical IPs of Node, Can be IPV4 IPV6 or both
-	gatewayIPv4, gatewayIPv6 := getGatewayFamilyAddrs(gwBridge.ips)
+	gatewayIPv4, gatewayIPv6 := getGatewayFamilyAddrs(ips)
 
 	npw := &nodePortWatcher{
 		dpuMode:           dpuMode,
@@ -1859,7 +1838,7 @@ func newNodePortWatcher(gwBridge *bridgeConfiguration, nodeName string, ofm *ope
 		gatewayIPv6:       gatewayIPv6,
 		ofportPhys:        ofportPhys,
 		ofportPatch:       ofportPatch,
-		gwBridge:          gwBridge.bridgeName,
+		gwBridge:          gwBridge,
 		nodeName:          nodeName,
 		serviceInfo:       make(map[ktypes.NamespacedName]*serviceConfig),
 		egressServiceInfo: make(map[ktypes.NamespacedName]*serviceEps),

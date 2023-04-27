@@ -327,10 +327,7 @@ type primaryIfAddrAnnotation struct {
 }
 
 // SetNodePrimaryIfAddr sets the IPv4 / IPv6 values of the node's primary network interface
-func SetNodePrimaryIfAddrs(nodeAnnotator kube.Annotator, ifAddrs []*net.IPNet) (err error) {
-	nodeIPNetv4, _ := MatchFirstIPNetFamily(false, ifAddrs)
-	nodeIPNetv6, _ := MatchFirstIPNetFamily(true, ifAddrs)
-
+func SetNodePrimaryIfAddr(nodeAnnotator kube.Annotator, nodeIPNetv4, nodeIPNetv6 *net.IPNet) (err error) {
 	primaryIfAddrAnnotation := primaryIfAddrAnnotation{}
 	if nodeIPNetv4 != nil {
 		primaryIfAddrAnnotation.IPv4 = nodeIPNetv4.String()
