@@ -312,21 +312,16 @@ func (c *addressManager) nodePrimaryAddrChanged() (bool, error) {
 		return false, err
 	}
 	// check to see if ips on the node differ from what we stored
-	// in addressManager and it's an address that is known locally
+	// in addressManager
 	nodePrimaryAddrStr, err := util.GetNodePrimaryIP(node)
 	if err != nil {
 		return false, err
 	}
 	nodePrimaryAddr := net.ParseIP(nodePrimaryAddrStr)
-
 	if nodePrimaryAddr == nil {
 		return false, fmt.Errorf("failed to parse the primary IP address string from kubernetes node status")
 	}
-	c.Lock()
-	exists := c.addresses.Has(nodePrimaryAddrStr)
-	c.Unlock()
-
-	if !exists || c.nodePrimaryAddr.Equal(nodePrimaryAddr) {
+	if c.nodePrimaryAddr != nil && c.nodePrimaryAddr.Equal(nodePrimaryAddr) {
 		return false, nil
 	}
 	c.nodePrimaryAddr = nodePrimaryAddr
