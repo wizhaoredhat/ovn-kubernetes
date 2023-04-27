@@ -1776,7 +1776,7 @@ func newSharedGateway(nodeName string, subnets []*net.IPNet, gwNextHops []net.IP
 	return gw, nil
 }
 
-func newNodePortWatcher(patchPort, gwBridge, gwIntf, nodeName string, ips []*net.IPNet, ofm *openflowManager,
+func newNodePortWatcher(patchPort, gwBridge, gwIntf string, nodeName string, ips []*net.IPNet, ofm *openflowManager,
 	nodeIPManager *addressManager, watchFactory factory.NodeWatchFactory) (*nodePortWatcher, error) {
 	// Get ofport of patchPort
 	ofportPatch, stderr, err := util.GetOVSOfPort("--if-exists", "get",
@@ -1815,11 +1815,11 @@ func newNodePortWatcher(patchPort, gwBridge, gwIntf, nodeName string, ips []*net
 	if config.Gateway.DisableForwarding {
 		for _, subnet := range config.Kubernetes.ServiceCIDRs {
 			if err := initExternalBridgeServiceForwardingRules(subnet); err != nil {
-				return nil, fmt.Errorf("failed to add forwarding rules for bridge %s: err %v", gwBridge.bridgeName, err)
+				return nil, fmt.Errorf("failed to add forwarding rules for bridge %s: err %v", gwBridge, err)
 			}
 		}
-		if err := initExternalBridgeDropForwardingRules(gwBridge.bridgeName); err != nil {
-			return nil, fmt.Errorf("failed to add forwarding rules for bridge %s: err %v", gwBridge.bridgeName, err)
+		if err := initExternalBridgeDropForwardingRules(gwBridge); err != nil {
+			return nil, fmt.Errorf("failed to add forwarding rules for bridge %s: err %v", gwBridge, err)
 		}
 	}
 

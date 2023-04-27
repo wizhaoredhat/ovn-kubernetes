@@ -316,8 +316,8 @@ func (nc *DefaultNodeNetworkController) initGateway(subnets []*net.IPNet, nodeAn
 		}
 	}
 
-	v4IfAddr, _ := util.MatchIPNetFamily(false, ifAddrs)
-	v6IfAddr, _ := util.MatchIPNetFamily(true, ifAddrs)
+	v4IfAddr, _ := util.MatchFirstIPNetFamily(false, ifAddrs)
+	v6IfAddr, _ := util.MatchFirstIPNetFamily(true, ifAddrs)
 
 	if err := util.SetNodePrimaryIfAddr(nodeAnnotator, v4IfAddr, v6IfAddr); err != nil {
 		klog.Errorf("Unable to set primary IP net label on node, err: %v", err)
