@@ -224,26 +224,28 @@ func (c *addressManager) updateNodeAddressAnnotations() error {
 	if err != nil {
 		return err
 	}
+	klog.Info("WZ after c.watchFactory.GetNode():c.nodeName %+v", c.nodeName)
 
 	if c.useNetlink {
 		// get updated interface IP addresses for the gateway bridge
-		ifAddrs, err = c.gatewayBridge.updateInterfaceIPAddresses()
+		ifAddrs, err = c.gatewayBridge.updateInterfaceIPAddresses(node)
 		if err != nil {
 			return err
 		}
+		klog.Info("WZ after c.gatewayBridge.updateInterfaceIPAddresses():ifAddrs %+v", ifAddrs)
 	}
-
 	// update k8s.ovn.org/host-addresses
 	if err = util.SetNodeHostAddresses(c.nodeAnnotator, c.addresses); err != nil {
 		return err
 	}
-
+	klog.Info("WZ after util.SetNodeHostAddresses():ifAddrs %+v", c.addresses)
 	// sets both IPv4 and IPv6 primary IP addr in annotation k8s.ovn.org/node-primary-ifaddr
 	// Note: this is not the API node's internal interface, but the primary IP on the gateway
 	// bridge (cf. gateway_init.go)
 	if err = util.SetNodePrimaryIfAddrs(c.nodeAnnotator, ifAddrs); err != nil {
 		return err
 	}
+	klog.Info("WZ after util.SetNodePrimaryIfAddrs():ifAddrs %+v", ifAddrs)
 
 	// update k8s.ovn.org/l3-gateway-config
 	gatewayCfg, err := util.ParseNodeL3GatewayAnnotation(node)
@@ -251,6 +253,9 @@ func (c *addressManager) updateNodeAddressAnnotations() error {
 		return err
 	}
 	gatewayCfg.IPAddresses = ifAddrs
+	klog.Info("WZ after util.ParseNodeL3GatewayAnnotation():ifAddrs %+v", ifAddrs)
+	klog.Info("WZ after util.ParseNodeL3GatewayAnnotation():gatewayCfg %+v", gatewayCfg)
+
 	err = util.SetL3GatewayConfig(c.nodeAnnotator, gatewayCfg)
 	if err != nil {
 		return err

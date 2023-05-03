@@ -306,6 +306,7 @@ func (nc *DefaultNodeNetworkController) initGateway(subnets []*net.IPNet, nodeAn
 	if err != nil {
 		return err
 	}
+	klog.Info("WZ after initGateway() getNetworkInterfaceIPAddresses(): ifAddrs = %+v", ifAddrs)
 
 	// For DPU need to use the host IP addr which currently is assumed to be K8s Node cluster
 	// internal IP address.
@@ -314,11 +315,13 @@ func (nc *DefaultNodeNetworkController) initGateway(subnets []*net.IPNet, nodeAn
 		if err != nil {
 			return err
 		}
+		klog.Info("WZ after initGateway() getDPUHostPrimaryIPAddresses(): ifAddrs = %+v", ifAddrs)
 	}
 
 	if err := util.SetNodePrimaryIfAddrs(nodeAnnotator, ifAddrs); err != nil {
 		klog.Errorf("Unable to set primary IP net label on node, err: %v", err)
 	}
+	klog.Info("WZ after initGateway() util.SetNodePrimaryIfAddrs(): ifAddrs = %+v", ifAddrs)
 
 	var gw *gateway
 	switch config.Gateway.Mode {

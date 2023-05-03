@@ -511,6 +511,7 @@ func (nc *DefaultNodeNetworkController) Start(ctx context.Context) error {
 	if node, err = nc.Kube.GetNode(nc.name); err != nil {
 		return fmt.Errorf("error retrieving node %s: %v", nc.name, err)
 	}
+	klog.Info("WZ after Start() nc.Kube.GetNode(): nc.name = %+v", nc.name)
 
 	nodeAddrStr, err := util.GetNodePrimaryIP(node)
 	if err != nil {
@@ -518,7 +519,7 @@ func (nc *DefaultNodeNetworkController) Start(ctx context.Context) error {
 	}
 	nodeAddr := net.ParseIP(nodeAddrStr)
 	if nodeAddr == nil {
-		return fmt.Errorf("failed to parse kubernetes node IP address. %v", err)
+		return fmt.Errorf("failed to parse kubernetes node IP address. %v", nodeAddrStr)
 	}
 
 	if config.OvnKubeNode.Mode != types.NodeModeDPUHost {

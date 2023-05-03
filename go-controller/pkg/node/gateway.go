@@ -373,14 +373,35 @@ type bridgeConfiguration struct {
 }
 
 // updateInterfaceIPAddresses sets and returns the bridge's current ips
-func (b *bridgeConfiguration) updateInterfaceIPAddresses() ([]*net.IPNet, error) {
+func (b *bridgeConfiguration) updateInterfaceIPAddresses(node *kapi.Node) ([]*net.IPNet, error) {
 	b.Lock()
 	defer b.Unlock()
 	ifAddrs, err := getNetworkInterfaceIPAddresses(b.bridgeName)
-	if err == nil {
-		b.ips = ifAddrs
+	if err != nil {
+		return nil, err
 	}
-	return ifAddrs, err
+	klog.Info("WZ after updateInterfaceIPAddresses() getNetworkInterfaceIPAddresses(): ifAddrs = %+v", ifAddrs)
+
+	// For DPU need to use the host IP addr which currently is assumed to be K8s Node cluster
+	// internal IP address.
+	if config.OvnKubeNode.Mode == types.NodeModeDPU {
+		nodeAddrStr, err := util.GetNodePrimaryIP(node)
+		if err != nil {
+			return nil, err
+		}
+		nodeAddr := net.ParseIP(nodeAddrStr)
+		if nodeAddr == nil {
+			return nil, fmt.Errorf("failed to parse node IP address. %v", nodeAddrStr)
+		}
+		ifAddrs, err = getDPUHostPrimaryIPAddresses(nodeAddr, ifAddrs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	b.ips = ifAddrs
+	klog.Info("WZ after updateInterfaceIPAddresses() getNetworkInterfaceIPAddresses() PART 2: b.ips = %+v", b.ips)
+	return ifAddrs, nil
 }
 
 func bridgeForInterface(intfName, nodeName, physicalNetworkName string, gwIPs []*net.IPNet) (*bridgeConfiguration, error) {
@@ -421,10 +442,12 @@ func bridgeForInterface(intfName, nodeName, physicalNetworkName string, gwIPs []
 	if len(gwIPs) > 0 {
 		// use gwIPs if provided
 		res.ips = gwIPs
+		klog.Info("WZ after bridgeForInterface() res.ips=gwIPs(): res.ips = %+v", res.ips)
 	} else {
 		// get IP addresses from OVS bridge. If IP does not exist,
 		// error out.
 		res.ips, err = getNetworkInterfaceIPAddresses(gwIntf)
+		klog.Info("WZ after bridgeForInterface() getNetworkInterfaceIPAddresses(): res.ips = %+v", res.ips)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get interface details for %s", gwIntf)
 		}
