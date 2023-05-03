@@ -55,7 +55,7 @@ func (mp *managementPortRepresentor) Create(nodeAnnotator kube.Annotator, waiter
 		if err != nil {
 			return nil, fmt.Errorf("failed to get link device for %s. %v", mp.repName, err)
 		}
-	} else if mp.repName != k8sMgmtIntfName {
+	} else if link.Attrs().Name != k8sMgmtIntfName {
 		if err := syncMgmtPortInterface(mp.hostSubnets, k8sMgmtIntfName, false); err != nil {
 			return nil, fmt.Errorf("failed to check existing management port: %v", err)
 		}
@@ -193,7 +193,7 @@ func (mp *managementPortNetdev) Create(nodeAnnotator kube.Annotator, waiter *sta
 		if err != nil {
 			return nil, fmt.Errorf("failed to get link device for %s. %v", mp.netdevName, err)
 		}
-	} else if mp.netdevName != types.K8sMgmtIntfName {
+	} else if link.Attrs().Name != types.K8sMgmtIntfName {
 		if config.OvnKubeNode.Mode == types.NodeModeDPUHost {
 			// We do not expect OVS running here so just check if no old mgmt port netdevice exists and unconfigure it
 			err = unconfigureMgmtNetdevicePort(mp.hostSubnets, types.K8sMgmtIntfName)
