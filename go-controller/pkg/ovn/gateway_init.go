@@ -115,6 +115,8 @@ func (oc *DefaultNetworkController) gatewayInit(nodeName string, clusterIPSubnet
 	l3GatewayConfig *util.L3GatewayConfig, sctpSupport bool, gwLRPIfAddrs, drLRPIfAddrs []*net.IPNet,
 	enableGatewayMTU bool) error {
 
+	klog.Infof("WZGATEWAY got into gateway_init.go %s", nodeName)
+
 	gwLRPIPs := make([]net.IP, 0)
 	for _, gwLRPIfAddr := range gwLRPIfAddrs {
 		gwLRPIPs = append(gwLRPIPs, gwLRPIfAddr.IP)
@@ -258,6 +260,8 @@ func (oc *DefaultNetworkController) gatewayInit(nodeName string, clusterIPSubnet
 		}
 	}
 
+	klog.Infof("WZGATEWAY got into gateway_init.go %s 1", nodeName)
+
 	if err := oc.addExternalSwitch("",
 		l3GatewayConfig.InterfaceID,
 		nodeName,
@@ -270,6 +274,8 @@ func (oc *DefaultNetworkController) gatewayInit(nodeName string, clusterIPSubnet
 	}
 
 	if l3GatewayConfig.EgressGWInterfaceID != "" {
+		klog.Infof("WZGATEWAY got into gateway_init.go %s 2", nodeName)
+
 		if err := oc.addExternalSwitch(types.EgressGWSwitchPrefix,
 			l3GatewayConfig.EgressGWInterfaceID,
 			nodeName,
@@ -481,11 +487,14 @@ func (oc *DefaultNetworkController) gatewayInit(nodeName string, clusterIPSubnet
 // addExternalSwitch creates a switch connected to the external bridge and connects it to
 // the gateway router
 func (oc *DefaultNetworkController) addExternalSwitch(prefix, interfaceID, nodeName, gatewayRouter, macAddress, physNetworkName string, ipAddresses []*net.IPNet, vlanID *uint) error {
+	klog.Infof("WZGATEWAY got into addExternalSwitch 1 %s %s %s %s %s %s", prefix, interfaceID, nodeName, gatewayRouter, macAddress, physNetworkName)
+	klog.Infof("WZGATEWAY got into addExternalSwitch 2 %v %v", ipAddresses, vlanID)
 	// Create the GR port that connects to external_switch with mac address of
 	// external interface and that IP address. In the case of `local` gateway
 	// mode, whenever ovnkube-node container restarts a new br-local bridge will
 	// be created with a new `nicMacAddress`.
 	externalRouterPort := prefix + types.GWRouterToExtSwitchPrefix + gatewayRouter
+	klog.Infof("WZGATEWAY got into addExternalSwitch 3 externalRouterPort %s", externalRouterPort)
 
 	externalRouterPortNetworks := []string{}
 	for _, ip := range ipAddresses {
@@ -505,6 +514,7 @@ func (oc *DefaultNetworkController) addExternalSwitch(prefix, interfaceID, nodeN
 		&externalLogicalRouterPort, nil, &externalLogicalRouterPort.MAC,
 		&externalLogicalRouterPort.Networks, &externalLogicalRouterPort.ExternalIDs)
 	if err != nil {
+		klog.Infof("WZGATEWAY FAIL got into addExternalSwitch externalRouterPort %v", externalRouterPort)
 		return fmt.Errorf("failed to add logical router port %+v to router %s: %v", externalLogicalRouterPort, gatewayRouter, err)
 	}
 
@@ -513,6 +523,7 @@ func (oc *DefaultNetworkController) addExternalSwitch(prefix, interfaceID, nodeN
 	// This is a learning switch port with "unknown" address. The external
 	// world is accessed via this port.
 	externalSwitch := externalSwitchName(prefix, nodeName)
+	klog.Infof("WZGATEWAY got into addExternalSwitch 4 external switch %v", externalSwitch)
 	externalLogicalSwitchPort := nbdb.LogicalSwitchPort{
 		Addresses: []string{"unknown"},
 		Type:      "localnet",
@@ -521,6 +532,7 @@ func (oc *DefaultNetworkController) addExternalSwitch(prefix, interfaceID, nodeN
 		},
 		Name: interfaceID,
 	}
+	klog.Infof("WZGATEWAY got into addExternalSwitch 5 physNetworkName %v", physNetworkName)
 	if vlanID != nil {
 		intVlanID := int(*vlanID)
 		externalLogicalSwitchPort.TagRequest = &intVlanID
@@ -537,9 +549,11 @@ func (oc *DefaultNetworkController) addExternalSwitch(prefix, interfaceID, nodeN
 		Addresses: []string{macAddress},
 	}
 	sw := nbdb.LogicalSwitch{Name: externalSwitch}
+	klog.Infof("WZGATEWAY got into addExternalSwitch 6 externalSwitchPortToRouter %v", externalSwitchPortToRouter)
 
 	err = libovsdbops.CreateOrUpdateLogicalSwitchPortsAndSwitch(oc.nbClient, &sw, &externalLogicalSwitchPort, &externalLogicalSwitchPortToRouter)
 	if err != nil {
+		klog.Infof("WZGATEWAY FAIL got into addExternalSwitch 7 externalSwitchPortToRouter %v", externalSwitchPortToRouter)
 		return fmt.Errorf("failed to create logical switch ports %+v, %+v, and switch %s: %v",
 			externalLogicalSwitchPort, externalLogicalSwitchPortToRouter, externalSwitch, err)
 	}

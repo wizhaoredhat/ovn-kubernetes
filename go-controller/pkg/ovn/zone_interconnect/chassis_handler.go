@@ -3,6 +3,7 @@ package zoneinterconnect
 import (
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 
 	libovsdbclient "github.com/ovn-org/libovsdb/client"
 	libovsdbops "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/libovsdb/ops"
+	config "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/sbdb"
 	ovntypes "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/types"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util"
@@ -132,10 +134,20 @@ func (zch *ZoneChassisHandler) createOrUpdateNodeChassis(node *corev1.Node, isRe
 			node.Name, parsedErr)
 	}
 
-	nodePrimaryIp, err := util.GetNodePrimaryIP(node)
-	if err != nil {
-		return fmt.Errorf("failed to parse node %s primary IP %w", node.Name, err)
+	nodePrimaryIp := config.Default.EncapIP
+	if nodePrimaryIp == "" {
+		nodePrimaryIp, err = util.GetNodePrimaryIP(node)
+		if err != nil {
+			return fmt.Errorf("failed to parse node %s primary IP %w", node.Name, err)
+		}
+		klog.Infof("WZZONE got into createOrUpdateNodeChassis empty nodePrimaryIp %v", nodePrimaryIp)
+	} else {
+		klog.Infof("WZZONE got into createOrUpdateNodeChassis non empty nodePrimaryIp %v", nodePrimaryIp)
+		if ip := net.ParseIP(nodePrimaryIp); ip == nil {
+			return fmt.Errorf("invalid encapsulation IP provided %q", nodePrimaryIp)
+		}
 	}
+	klog.Infof("WZZONE got into createOrUpdateNodeChassis nodePrimaryIp %v", nodePrimaryIp)
 
 	chassis := sbdb.Chassis{
 		Name:     chassisID,

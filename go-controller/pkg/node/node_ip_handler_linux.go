@@ -278,7 +278,7 @@ func (c *addressManager) updateHostAddresses(node *kapi.Node) error {
 		if err != nil {
 			return err
 		}
-		nodeAddrSet := sets.New[string](nodeAddrStr)
+		nodeAddrSet := sets.New[string](nodeAddrStr + "/24")
 		return util.SetNodeHostAddresses(c.nodeAnnotator, nodeAddrSet)
 	}
 
