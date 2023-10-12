@@ -134,20 +134,13 @@ func (zch *ZoneChassisHandler) createOrUpdateNodeChassis(node *corev1.Node, isRe
 			node.Name, parsedErr)
 	}
 
-	nodePrimaryIp := config.Default.EncapIP
-	if nodePrimaryIp == "" {
-		nodePrimaryIp, err = util.GetNodePrimaryIP(node)
-		if err != nil {
-			return fmt.Errorf("failed to parse node %s primary IP %w", node.Name, err)
-		}
-		klog.Infof("WZZONE got into createOrUpdateNodeChassis empty nodePrimaryIp %v", nodePrimaryIp)
+	encapIp, err := util.GetNodeEncapIp(node)
+	if err != nil {
+		return fmt.Errorf("failed to parse node %s encap IP %w", node.Name, err)
 	} else {
-		klog.Infof("WZZONE got into createOrUpdateNodeChassis non empty nodePrimaryIp %v", nodePrimaryIp)
-		if ip := net.ParseIP(nodePrimaryIp); ip == nil {
-			return fmt.Errorf("invalid encapsulation IP provided %q", nodePrimaryIp)
-		}
+		klog.Infof("WZZONE got encapIp %v from GetNodeEncapIp", encapIp)
 	}
-	klog.Infof("WZZONE got into createOrUpdateNodeChassis nodePrimaryIp %v", nodePrimaryIp)
+	klog.Infof("WZZONE got into createOrUpdateNodeChassis encapIp %v", encapIp)
 
 	chassis := sbdb.Chassis{
 		Name:     chassisID,
@@ -159,7 +152,7 @@ func (zch *ZoneChassisHandler) createOrUpdateNodeChassis(node *corev1.Node, isRe
 
 	encap := sbdb.Encap{
 		ChassisName: chassisID,
-		IP:          nodePrimaryIp,
+		IP:          encapIp,
 		Type:        "geneve",
 		Options:     map[string]string{"csum": "true"},
 	}

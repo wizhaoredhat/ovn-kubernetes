@@ -113,6 +113,8 @@ const (
 	// InvalidNodeID indicates an invalid node id
 	InvalidNodeID = -1
 
+	OvnNodeEncapIp = "k8s.ovn.org/encap-ip"
+
 	// ovnNetworkIDs is the constant string representing the ids allocated for the
 	// default network and other layer3 secondary networks by cluster manager.
 	ovnNetworkIDs = "k8s.ovn.org/network-ids"
@@ -402,6 +404,19 @@ func ParseNodeManagementPortMACAddress(node *kapi.Node) (net.HardwareAddr, error
 	}
 
 	return net.ParseMAC(macAddress)
+}
+
+func SetNodeEncapIp(nodeAnnotator kube.Annotator, ip string) (err error) {
+       return nodeAnnotator.Set(OvnNodeEncapIp, primaryIfAddrAnnotation)
+}
+
+func GetNodeEncapIp(node *kapi.Node) (string, error) {
+       ip, ok := node.Annotations[OvnNodeEncapIp]
+       if !ok {
+               return "", newAnnotationNotSetError("OVN Encap IP annotation not found for node %q ", node.Name)
+       }
+
+       return ip, nil
 }
 
 type primaryIfAddrAnnotation struct {

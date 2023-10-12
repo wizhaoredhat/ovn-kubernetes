@@ -240,7 +240,7 @@ func (c *addressManager) updateNodeAddressAnnotations() error {
 	}
 
 	// update k8s.ovn.org/host-addresses
-	if err = c.updateHostAddresses(node); err != nil {
+	if err = c.updateHostAddresses(node, ifAddrs); err != nil {
 		return err
 	}
 
@@ -270,15 +270,13 @@ func (c *addressManager) updateNodeAddressAnnotations() error {
 	return nil
 }
 
-func (c *addressManager) updateHostAddresses(node *kapi.Node) error {
+func (c *addressManager) updateHostAddresses(node *kapi.Node, ifAddrs []*net.IPNet) error {
 	if config.OvnKubeNode.Mode == types.NodeModeDPU {
 		// For DPU mode, here we need to use the DPU host's IP address which is the tenant cluster's
 		// host internal IP address instead.
-		nodeAddrStr, err := util.GetNodePrimaryIP(node)
-		if err != nil {
-			return err
-		}
-		nodeAddrSet := sets.New[string](nodeAddrStr + "/24")
+		nodeIPNetv4, _ := MatchFirstIPNetFamily(false, ifAddrs)
+		nodeAddrSet := sets.New[string](nodeIPNetv4.String())
+		klog.V(4).Infof("WZ DEBUG updateHostAddresses %s", nodeIPNetv4.String())
 		return util.SetNodeHostAddresses(c.nodeAnnotator, nodeAddrSet)
 	}
 
