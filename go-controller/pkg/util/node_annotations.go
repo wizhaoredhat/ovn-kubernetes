@@ -407,7 +407,7 @@ func ParseNodeManagementPortMACAddress(node *kapi.Node) (net.HardwareAddr, error
 }
 
 func SetNodeEncapIp(nodeAnnotator kube.Annotator, ip string) (err error) {
-       return nodeAnnotator.Set(OvnNodeEncapIp, primaryIfAddrAnnotation)
+       return nodeAnnotator.Set(OvnNodeEncapIp, ip)
 }
 
 func GetNodeEncapIp(node *kapi.Node) (string, error) {

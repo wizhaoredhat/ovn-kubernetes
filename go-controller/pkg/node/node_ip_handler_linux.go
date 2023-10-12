@@ -274,7 +274,7 @@ func (c *addressManager) updateHostAddresses(node *kapi.Node, ifAddrs []*net.IPN
 	if config.OvnKubeNode.Mode == types.NodeModeDPU {
 		// For DPU mode, here we need to use the DPU host's IP address which is the tenant cluster's
 		// host internal IP address instead.
-		nodeIPNetv4, _ := MatchFirstIPNetFamily(false, ifAddrs)
+		nodeIPNetv4, _ := util.MatchFirstIPNetFamily(false, ifAddrs)
 		nodeAddrSet := sets.New[string](nodeIPNetv4.String())
 		klog.V(4).Infof("WZ DEBUG updateHostAddresses %s", nodeIPNetv4.String())
 		return util.SetNodeHostAddresses(c.nodeAnnotator, nodeAddrSet)
