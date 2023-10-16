@@ -139,6 +139,7 @@ func (nt *nodeTracker) Start(nodeInformer coreinformers.NodeInformer) (cache.Res
 				oldObj.Name != newObj.Name ||
 				util.NodeHostCIDRsAnnotationChanged(oldObj, newObj) ||
 				util.NodeZoneAnnotationChanged(oldObj, newObj) ||
+				util.NodeEncapIpAnnotationChanged(oldObj, newObj) ||
 				util.NodeMigratedZoneAnnotationChanged(oldObj, newObj) {
 				nt.updateNode(newObj)
 			}
