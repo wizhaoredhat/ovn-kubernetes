@@ -886,6 +886,7 @@ func (h *defaultNetworkControllerEventHandler) UpdateResource(oldObj, newObj int
 		newNodeIsLocalZoneNode := h.oc.isLocalZoneNode(newNode)
 		zoneClusterChanged := h.oc.nodeZoneClusterChanged(oldNode, newNode, newNodeIsLocalZoneNode)
 		nodeSubnetChanged := nodeSubnetChanged(oldNode, newNode)
+		encapIpChanged := util.NodeEncapIpAnnotationChanged(oldNode, newNode)
 		if newNodeIsLocalZoneNode {
 			var nodeSyncsParam *nodeSyncs
 			if h.oc.isLocalZoneNode(oldNode) {
@@ -901,7 +902,7 @@ func (h *defaultNetworkControllerEventHandler) UpdateResource(oldObj, newObj int
 					nodeGatewayMTUSupportChanged(oldNode, newNode))
 				_, hoSync := h.oc.hybridOverlayFailed.Load(newNode.Name)
 				_, syncZoneIC := h.oc.syncZoneICFailed.Load(newNode.Name)
-				syncZoneIC = syncZoneIC || zoneClusterChanged || primaryAddrChanged(oldNode, newNode)
+				syncZoneIC = syncZoneIC || zoneClusterChanged || encapIpChanged || primaryAddrChanged(oldNode, newNode)
 				_, failed = h.oc.syncMigratablePodsFailed.Load(newNode.Name)
 				syncMigratablePods := failed || nodeSubnetChanged
 				nodeSyncsParam = &nodeSyncs{
@@ -925,7 +926,7 @@ func (h *defaultNetworkControllerEventHandler) UpdateResource(oldObj, newObj int
 
 			// Check if the node moved from local zone to remote zone and if so syncZoneIC should be set to true.
 			// Also check if node subnet changed, so static routes are properly set
-			syncZoneIC = syncZoneIC || h.oc.isLocalZoneNode(oldNode) || nodeSubnetChanged || zoneClusterChanged || primaryAddrChanged(oldNode, newNode)
+			syncZoneIC = syncZoneIC || h.oc.isLocalZoneNode(oldNode) || nodeSubnetChanged || zoneClusterChanged || encapIpChanged || primaryAddrChanged(oldNode, newNode)
 			if syncZoneIC {
 				klog.Infof("Node %s in remote zone %s needs interconnect zone sync up. Zone cluster changed: %v",
 					newNode.Name, util.GetNodeZone(newNode), zoneClusterChanged)
